@@ -18,7 +18,7 @@ function SignIn() {
     setErr("")
     setLoading(true)
     try {
-      let result = await axios.post(`${serverUrl}/api/auth/signin`, {
+      let result = await axios.post(`/api/auth/signin`, {
         email, password
       }, { withCredentials: true })
       setUserData(result.data)

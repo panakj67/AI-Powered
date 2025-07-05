@@ -6,6 +6,10 @@ import Customize from './pages/Customize'
 import { userDataContext } from './context/UserContext'
 import Home from './pages/Home'
 import Customize2 from './pages/Customize2'
+import axios from 'axios'
+
+axios.defaults.baseURL = "http://localhost:3000";
+axios.defaults.withCredentials = true;
 
 function App() {
   const { userData, setUserData } = useContext(userDataContext)

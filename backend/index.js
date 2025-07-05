@@ -10,19 +10,27 @@ import geminiResponse from "./gemini.js"
 
 
 const app=express()
+
+connectDb()
+
 app.use(cors({
     origin:"http://localhost:5173",
     credentials:true
 }))
+
 const port=process.env.PORT || 5000
 app.use(express.json())
 app.use(cookieParser())
+
+app.get("/", (req, res) => {
+    res.send("Api is working!!")
+})
+
 app.use("/api/auth",authRouter)
 app.use("/api/user",userRouter)
 
 
 app.listen(port,()=>{
-    connectDb()
-    console.log("server started")
+    console.log("Server is running on PORT 3000 !!")
 })
 
