@@ -10,7 +10,7 @@ import axios from 'axios'
 import { Toaster} from 'react-hot-toast'
 import { useEffect } from 'react'
 
-axios.defaults.baseURL = "https://ai-powered-qx4l.onrender.com/";
+axios.defaults.baseURL = "https://ai-powered-qx4l.onrender.com";
 axios.defaults.withCredentials = true;
 
 function App() {

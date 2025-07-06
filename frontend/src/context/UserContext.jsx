@@ -18,12 +18,16 @@ function UserContext({ children }) {
     }
   }
 
+  console.log(userData);
+
   const getGeminiResponse = async (command) => {
     try {
       const result = await axios.post(`/api/user/asktoassistant`, { command }, { withCredentials: true })
       return result.data
     } catch (error) {
-      console.log(error)
+      console.error(error?.response?.data || error.message);
+      // Return a fallback response to avoid breaking the app
+      return { response: "Error from Gemini API.", type: null, userInput: null };
     }
   }
 
@@ -34,7 +38,7 @@ function UserContext({ children }) {
   const value = {
     serverUrl, userData, setUserData, backendImage, setBackendImage, frontendImage, setFrontendImage, selectedImage, setSelectedImage, getGeminiResponse
   }
-  
+
   return (
     <div>
       <userDataContext.Provider value={value}>
