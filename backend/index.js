@@ -13,8 +13,10 @@ const app=express()
 
 connectDb()
 
+// console.log(process.env.FRONTEND_URL);
+
 app.use(cors({
-    origin:"http://localhost:5173" || process.env.FRONTEND_URL,
+    origin: process.env.FRONTEND_URL,
     credentials:true
 }))
 
