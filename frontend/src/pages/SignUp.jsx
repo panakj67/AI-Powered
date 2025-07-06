@@ -5,6 +5,7 @@ import { IoEyeOff } from "react-icons/io5";
 import { useNavigate } from 'react-router-dom';
 import { userDataContext } from '../context/UserContext';
 import axios from "axios"
+import toast from 'react-hot-toast';
 function SignUp() {
   const [showPassword, setShowPassword] = useState(false)
   const { serverUrl, userData, setUserData } = useContext(userDataContext)
@@ -13,25 +14,32 @@ function SignUp() {
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
   const [password, setPassword] = useState("")
-  const [err, setErr] = useState("")
+  
+
   const handleSignUp = async (e) => {
     e.preventDefault()
-    setErr("")
     setLoading(true)
     try {
-      let result = await axios.post(`/api/auth/signup`, {
+      let {data} = await axios.post(`/api/auth/signup`, {
         name, email, password
       }, { withCredentials: true })
-      setUserData(result.data)
-      setLoading(false)
-      navigate("/customize")
+      if(data.success){
+        toast.success(data.message)
+        setUserData(data.user)
+        navigate("/")
+      }else toast.error(data.message)
+
     } catch (error) {
-      console.log(error)
-      setUserData(null)
+      toast.error(error.message);
+    } finally {
+      setName("")
+      setEmail("")
+      setPassword("")
       setLoading(false)
-      setErr(error.response.data.message)
     }
   }
+
+
   return (
     <div className='w-full h-screen bg-cover flex justify-center items-center' style={{ backgroundImage: `url(${bg})` }} >
       <form className='w-[90%] max-h-screen py-6 max-w-[500px] bg-[#00000062] backdrop-blur shadow-lg shadow-black flex flex-col items-center justify-center gap-[20px] px-[20px]' onSubmit={handleSignUp}>
@@ -43,10 +51,7 @@ function SignUp() {
           {!showPassword && <IoEye className=' w-[25px] h-[25px] text-[white] cursor-pointer' onClick={() => setShowPassword(true)} />}
           {showPassword && <IoEyeOff className=' w-[25px] h-[25px] text-[white] cursor-pointer' onClick={() => setShowPassword(false)} />}
         </div>
-        {err.length > 0 && <p className='text-red-500 text-[17px]'>
-          *{err}
-        </p>}
-        <button className='min-w-[150px] py-3 mt-[30px] text-black font-semibold  bg-white rounded-full text-[17px] ' disabled={loading}>{loading ? "Loading..." : "Sign Up"}</button>
+        <button className='min-w-[150px] py-3 mt-[30px] cursor-pointer text-black font-semibold  bg-white rounded-full text-[17px] ' disabled={loading}>{loading ? "Loading..." : "Sign Up"}</button>
 
         <p className='text-[white] text-[18px] cursor-pointer' onClick={() => navigate("/signin")}>Already have an account ? <span className='text-blue-400'>Sign In</span></p>
       </form>

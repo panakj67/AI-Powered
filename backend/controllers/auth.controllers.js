@@ -1,19 +1,20 @@
 import genToken from "../config/token.js"
 import User from "../models/user.model.js"
 import bcrypt from "bcryptjs"
+
 export const signUp = async (req, res) => {
     try {
         const { name, email, password } = req.body
 
         const existEmail = await User.findOne({ email })
         if (existEmail) {
-            return res.status(400).json({ message: "email already exists !" })
+            return res.json({ success : false, message: "email already exists !" })
         }
         if (password.length < 6) {
-            return res.status(400).json({ message: "password must be at least 6 characters !" })
+            return res.json({ success : false, message: "password must be at least 6 characters !" })
         }
-
-        const hashedPassword = await bcrypt.hash(password, 10)
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt)
 
         const user = await User.create({
             name, password: hashedPassword, email
@@ -24,14 +25,14 @@ export const signUp = async (req, res) => {
         res.cookie("token", token, {
             httpOnly: true,
             maxAge: 7 * 24 * 60 * 60 * 1000,
-            sameSite: "strict",
+            sameSite: "lax",
             secure: false
         })
 
-        return res.status(201).json(user)
+        return res.json({ success : true, message: "Account created successfully!!" , user})
 
     } catch (error) {
-        return res.status(500).json({ message: `sign up error ${error}` })
+        return res.json({ success : false, message: `sign up error ${error}` })
     }
 }
 
@@ -41,12 +42,12 @@ export const Login = async (req, res) => {
 
         const user = await User.findOne({ email })
         if (!user) {
-            return res.status(400).json({ message: "User does not exists !" })
+            return res.json({ success : false, message: "User does not exists !" })
         }
         const isMatch = await bcrypt.compare(password, user.password)
 
         if (!isMatch) {
-            return res.status(400).json({ message: "Invalid email or password !!" })
+            return res.json({ success : false, message: "Invalid email or password !!" })
         }
 
         const token = await genToken(user._id)
@@ -54,22 +55,35 @@ export const Login = async (req, res) => {
         res.cookie("token", token, {
             httpOnly: true,
             maxAge: 7 * 24 * 60 * 60 * 1000,
-            sameSite: "strict",
+            sameSite: "lax",
             secure: false
         })
 
-        return res.status(200).json(user)
+        return res.json({ success : true, message: "Account created successfully!!" , user})
 
     } catch (error) {
-        return res.status(500).json({ message: `login error ${error}` })
+        return res.json({success : false, message: `login error ${error}` })
     }
 }
 
 export const logOut = async (req, res) => {
+    console.log("logging out!");
+    
     try {
         res.clearCookie("token")
-        return res.status(200).json({ message: "log out successfully" })
+        return res.json({ success : true, message: "log out successfully" })
     } catch (error) {
-        return res.status(500).json({ message: `logout error ${error}` })
+        return res.json({success : false, message: `logout error ${error}` })
+    }
+}
+
+export const fetchCurrentUser = (req, res) => {
+    try {
+        const userId = req.userId;
+        const currUser = User.findById({userId})
+        console.log(currUser);
+        
+    } catch (error) {
+        
     }
 }
