@@ -8,10 +8,10 @@ export const signUp = async (req, res) => {
 
         const existEmail = await User.findOne({ email })
         if (existEmail) {
-            return res.json({ success : false, message: "email already exists !" })
+            return res.json({ success: false, message: "email already exists !" })
         }
         if (password.length < 6) {
-            return res.json({ success : false, message: "password must be at least 6 characters !" })
+            return res.json({ success: false, message: "password must be at least 6 characters !" })
         }
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt)
@@ -25,14 +25,15 @@ export const signUp = async (req, res) => {
         res.cookie("token", token, {
             httpOnly: true,
             maxAge: 7 * 24 * 60 * 60 * 1000,
-            sameSite: "lax",
-            secure: false
-        })
+            sameSite: "none",   // deployment ke liye cross-site allowed karo
+            secure: true,       // deployment me https required
+        });
 
-        return res.json({ success : true, message: "Account created successfully!!" , user})
+
+        return res.json({ success: true, message: "Account created successfully!!", user })
 
     } catch (error) {
-        return res.json({ success : false, message: `sign up error ${error}` })
+        return res.json({ success: false, message: `sign up error ${error}` })
     }
 }
 
@@ -42,12 +43,12 @@ export const Login = async (req, res) => {
 
         const user = await User.findOne({ email })
         if (!user) {
-            return res.json({ success : false, message: "User does not exists !" })
+            return res.json({ success: false, message: "User does not exists !" })
         }
         const isMatch = await bcrypt.compare(password, user.password)
 
         if (!isMatch) {
-            return res.json({ success : false, message: "Invalid email or password !!" })
+            return res.json({ success: false, message: "Invalid email or password !!" })
         }
 
         const token = await genToken(user._id)
@@ -55,35 +56,30 @@ export const Login = async (req, res) => {
         res.cookie("token", token, {
             httpOnly: true,
             maxAge: 7 * 24 * 60 * 60 * 1000,
-            sameSite: "lax",
-            secure: false
-        })
+            sameSite: "none",   // deployment ke liye cross-site allowed karo
+            secure: true,       // deployment me https required
+        });
 
-        return res.json({ success : true, message: "Account created successfully!!" , user})
+
+        return res.json({ success: true, message: "Account created successfully!!", user })
 
     } catch (error) {
-        return res.json({success : false, message: `login error ${error}` })
+        return res.json({ success: false, message: `login error ${error}` })
     }
 }
 
 export const logOut = async (req, res) => {
     console.log("logging out!");
-    
+
     try {
-        res.clearCookie("token")
-        return res.json({ success : true, message: "log out successfully" })
+        res.clearCookie("token", {
+            httpOnly: true,
+            sameSite: "none",
+            secure: true,
+        })
+        return res.json({ success: true, message: "log out successfully" })
     } catch (error) {
-        return res.json({success : false, message: `logout error ${error}` })
+        return res.json({ success: false, message: `logout error ${error}` })
     }
 }
 
-export const fetchCurrentUser = (req, res) => {
-    try {
-        const userId = req.userId;
-        const currUser = User.findById({userId})
-        console.log(currUser);
-        
-    } catch (error) {
-        
-    }
-}
