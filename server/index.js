@@ -6,6 +6,7 @@ import authRouter from "./routes/auth.routes.js"
 import cors from "cors"
 import cookieParser from "cookie-parser"
 import userRouter from "./routes/user.routes.js"
+import chatRouter from "./routes/chat.routes.js"
 import geminiResponse from "./gemini.js"
 
 
@@ -30,6 +31,7 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth",authRouter)
 app.use("/api/user",userRouter)
+app.use("/api/chat", chatRouter);
 
 
 app.listen(port,()=>{

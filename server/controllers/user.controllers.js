@@ -6,7 +6,7 @@ import moment from "moment"
 export const getCurrentUser = async (req, res) => {
    try {
       const userId = req.userId
-      const user = await User.findById(userId).select("-password")
+      const user = await User.findById(userId).select("-password").populate("chats");
       if (!user) {
          return res.status(400).json({ message: "user not found" })
       }
@@ -43,11 +43,9 @@ export const askToAssistant = async (req, res) => {
    try {
       const { command } = req.body
       const user = await User.findById(req.userId);
-      user.history.push(command)
-      user.save()
+      
       const userName = user.name
-      const assistantName = user.assistantName
-      const result = await geminiResponse(command, assistantName, userName)
+      const result = await geminiResponse(command, userName)
 
       const jsonMatch = result.match(/{[\s\S]*}/)
       if (!jsonMatch) {
