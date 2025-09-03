@@ -1,28 +1,45 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { lazy, useContext, useEffect, useRef, useState } from "react";
 import { Button } from "../components/Button";
 import { Input } from "../components/Input";
-import { Search, Sun, Moon, Send, X } from "lucide-react";
+import { Search, Sun, Moon, Send, X, Mic, MicOff } from "lucide-react"; // ✅ Added mic icons
 import Aura from "../assets/Aura.png";
 import axios from "axios";
 import { userDataContext } from "../context/UserContext";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
 
+const FreshChat = lazy(
+  () => import("../components/FreshChat")
+)
+
+// ✅ Web Speech API setup
+const SpeechRecognition =
+  window.SpeechRecognition || window.webkitSpeechRecognition;
+let recognition;
+
+if (SpeechRecognition) {
+  recognition = new SpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = "en-US";
+}
+
 export default function ScriptDashboard() {
-  const [darkMode, setDarkMode] = useState(() => {
-    const saved = localStorage.getItem("darkMode");
-    return saved === "true" ? true : false; // convert string to boolean
-  });
+  
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const { userData, getGeminiResponse, setUserData, allChats, setAllChats } = useContext(userDataContext);
+  const { userData, getGeminiResponse, darkMode,
+     setDarkMode, setUserData, allChats, setAllChats } = useContext(userDataContext);
   const navigate = useNavigate();
 
   const [messages, setMessages] = useState([]);
   const [inputText, setInputText] = useState("");
+  const [chatLoading, setChatLoading] = useState(false);
   const [loading, setLoading] = useState(false);
+  
 
   const [selectedChat, setSelectedChat] = useState(() => {
+    setLoading(true);
     const saved = localStorage.getItem("selectedChat");
     return saved ? JSON.parse(saved) : null;
   });
@@ -82,7 +99,7 @@ const addMessage = async (sender, text, chat = selectedChat) => {
     if (!trimmed) return;
   
     setInputText("");
-    setLoading(true);
+    setChatLoading(true);
   
     try {
       let chatToUse = selectedChat;
@@ -100,14 +117,14 @@ const addMessage = async (sender, text, chat = selectedChat) => {
       // Get AI response
       const response = await getGeminiResponse(trimmed);
       await addMessage("ai", response.response, chatToUse);
-  
+      speak(response.response);
       handleCommand(response);
   
     } catch (error) {
       await addMessage("ai", "Oops! Something went wrong.");
       console.error(error);
     } finally {
-      setLoading(false);
+      setChatLoading(false);
     }
   };
 
@@ -115,7 +132,7 @@ const addMessage = async (sender, text, chat = selectedChat) => {
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      if (!loading) handleSend();
+      if (!chatLoading) handleSend();
     }
   };
 
@@ -166,6 +183,7 @@ const addMessage = async (sender, text, chat = selectedChat) => {
     try {
        if( selectedChat?._id === chat._id  ){
          setSelectedChat(null);
+         setMessages([]);
        }
        const temp = allChats.filter(chat1 =>
         chat1._id !== chat._id
@@ -177,7 +195,7 @@ const addMessage = async (sender, text, chat = selectedChat) => {
        
        if(data.success){
          toast.success(data.message);
-       }else toast.error(data.message);
+       }else console.log(data.message);
     } catch (error) {
        toast.error(error.message);
     }
@@ -191,24 +209,25 @@ const addMessage = async (sender, text, chat = selectedChat) => {
   };
 
   const fetchMessages = async () => {
-    if (!selectedChat?._id) return [];
+    if (!selectedChat?._id) {
+      setLoading(false);
+      return [];
+    }
+    setLoading(true);
     try {
       const { data } = await axios.get(`/api/chat/${selectedChat._id}/messages`);
       return data.messages || [];
     } catch (error) {
       toast.error(error.message);
       return [];
-    }
+    }finally{  setLoading(false) }
   };
 
   useEffect(() => {
     // console.log(selectedChat);
-    
     const loadMessages = async () => {
-      if (selectedChat) {
         const msgs = await fetchMessages();
         setMessages(msgs);
-      }
     };
     loadMessages();
   }, [selectedChat]);
@@ -221,7 +240,7 @@ const addMessage = async (sender, text, chat = selectedChat) => {
     setChats(allChats);
   }, [allChats]);
 
-  useEffect(() => {
+  useEffect(() => { // debounce
     const handler = setTimeout(() => {
       const temp = allChats.filter(chat =>
         chat.title.toLowerCase().includes(search.toLowerCase())
@@ -236,6 +255,46 @@ const addMessage = async (sender, text, chat = selectedChat) => {
     localStorage.setItem("darkMode", darkMode)
     localStorage.setItem("selectedChat", JSON.stringify(selectedChat))
   }, [darkMode, selectedChat])
+
+  const [listening, setListening] = useState(false);
+
+  // ✅ Voice Input Handler
+  const startListening = () => {
+    if (!recognition) {
+      toast.error("Speech Recognition not supported in this browser.");
+      return;
+    }
+
+    recognition.start();
+    setListening(true);
+
+    recognition.onresult = (event) => {
+      const transcript = event.results[0][0].transcript;
+      setInputText(transcript); // Put recognized text in input box
+      handleSend(); // Auto-send after recognition
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      toast.error("Voice recognition error: " + event.error);
+      setListening(false);
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+    };
+  };
+
+  // ✅ Voice Output (AI responses)
+  const speak = (text) => {
+    if (!window.speechSynthesis) return;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = "en-US";
+    utterance.rate = 1; // Adjust speed
+    window.speechSynthesis.speak(utterance);
+  };
+
+   // Speak out AI responses automatically
   
 
   return (
@@ -330,12 +389,9 @@ const addMessage = async (sender, text, chat = selectedChat) => {
 
         {/* Chat Messages */}
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center transform h-full px-4 sm:px-6 md:px-8">
-            <img className="h-40 sm:h-32 md:h-48 lg:h-56 xl:h-64" src={Aura} alt="Aura" />
-            <h1 className="text-3xl sm:text-2xl md:text-4xl font-semibold text-center mt-4">What can I help with?</h1>
-          </div>
+          !loading && <FreshChat />
         ) : (
-          <div ref={chatWindowRef} className="flex-1 w-[94%] max-w-2xl absolute top-18 h-[73.5%] left-1/2 transform -translate-x-1/2 py-4 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent">
+          <div ref={chatWindowRef} className={`flex-1 w-[94%] max-w-2xl ${darkMode && "dark"} absolute top-18 h-[73.5%] left-1/2 transform -translate-x-1/2 py-4 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent`}>
             {messages.map(({ sender, text }, i) => (
               <div key={i} className={`flex max-w-[70%] ${sender === "user" ? "ml-auto justify-end" : "mr-auto justify-start"}`}>
                 <div className={`px-4 py-1 rounded-2xl max-w-full break-words whitespace-pre-wrap shadow-md ${sender === "user" ? `${darkMode ? "bg-gradient-to-r from-indigo-600 to-purple-600" : "bg-gradient-to-r from-indigo-500 to-purple-500"} text-white rounded-br-none` : `${darkMode ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white" : "bg-gradient-to-r from-cyan-400 to-blue-500 text-white"} rounded-bl-none`}`} style={{ wordBreak: "break-word" }}>
@@ -343,25 +399,41 @@ const addMessage = async (sender, text, chat = selectedChat) => {
                 </div>
               </div>
             ))}
-            {loading && <div className="italic text-gray-500 ml-3 animate-pulse select-none">AI is typing...</div>}
+            {chatLoading && <div className="italic text-gray-500 ml-3 animate-pulse select-none">AI is typing...</div>}
           </div>
         )}
 
         {/* Chat Input */}
-        <div className="w-[94%] max-w-2xl z-50 absolute bottom-5 left-1/2 transform -translate-x-1/2 flex items-center border rounded-full p-2 bg-transparent shadow-md">
-          <input
-            type="text"
-            value={inputText}
-            onChange={(e) => setInputText(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Type your message..."
-            className={`flex-1 border-none outline-none px-2 py-1 rounded-full bg-transparent ${darkMode ? "text-white placeholder-gray-400" : "text-gray-900 placeholder-gray-500"}`}
-            disabled={loading}
-          />
-          <button onClick={handleSend} disabled={loading || !inputText.trim()} className={`cursor-pointer ml-2 rounded-full ${darkMode ? "text-white" : "text-black"} p-2 disabled:opacity-50 disabled:cursor-not-allowed`}>
-            <Send className="h-5 w-5" />
-          </button>
-        </div>
+      <div className="w-[94%] max-w-2xl z-50 absolute bottom-5 left-1/2 transform -translate-x-1/2 flex items-center border rounded-full p-2 bg-transparent shadow-md">
+        <input
+          type="text"
+          value={inputText}
+          onChange={(e) => setInputText(e.target.value)}
+          onKeyDown={handleKeyDown}
+          placeholder="Type your message or use mic..."
+          className={`flex-1 border-none outline-none px-2 py-1 rounded-full bg-transparent ${darkMode ? "text-white placeholder-gray-400" : "text-gray-900 placeholder-gray-500"}`}
+          disabled={chatLoading}
+        />
+        {/* Mic Button */}
+        <button
+          onClick={startListening}
+          className="cursor-pointer ml-2 p-2 rounded-full"
+        >
+          {listening ? (
+            <MicOff className="h-5 w-5 text-red-500" />
+          ) : (
+            <Mic className="h-5 w-5 text-green-500" />
+          )}
+        </button>
+        {/* Send Button */}
+        <button
+          onClick={handleSend}
+          disabled={chatLoading || !inputText.trim()}
+          className={`cursor-pointer ml-2 rounded-full ${darkMode ? "text-white" : "text-black"} p-2 disabled:opacity-50 disabled:cursor-not-allowed`}
+        >
+          <Send className="h-5 w-5" />
+        </button>
+      </div>
       </main>
     </div>
   );

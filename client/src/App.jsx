@@ -1,10 +1,13 @@
-import React, { useContext } from 'react'
+import React, { lazy, useContext } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import SignUp from './pages/SignUp'
 import SignIn from './pages/SignIn'
 
 import { userDataContext } from './context/UserContext'
-import Home from './pages/Home'
+
+const Home = lazy(
+  () => import('./pages/Home')
+)
 
 import axios from 'axios'
 import { Toaster} from 'react-hot-toast'

@@ -41,7 +41,7 @@ export const Login = async (req, res) => {
     try {
         const { email, password } = req.body
 
-        const user = await User.findOne({ email })
+        const user = await User.findOne({ email }).populate('chats')
         if (!user) {
             return res.json({ success: false, message: "User does not exists !" })
         }

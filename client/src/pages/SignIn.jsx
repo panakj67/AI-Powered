@@ -10,7 +10,7 @@ import Aura from '../assets/Aura.png'
 
 export default function Signin() {
   const [showPassword, setShowPassword] = useState(false);
-  const { serverUrl, userData, setUserData } = useContext(userDataContext)
+  const { serverUrl, setAllChats, userData, setUserData } = useContext(userDataContext)
   const navigate = useNavigate()
   const [email, setEmail] = useState("")
   const [loading, setLoading] = useState(false)
@@ -26,6 +26,9 @@ export default function Signin() {
       }, { withCredentials: true })
       if(data.success) {
         setUserData(data.user);
+        console.log(data.user);
+        
+        setAllChats(data.user.chats);
         toast.success(data.message)
         navigate("/");
       }else toast.error(data.message)
@@ -111,8 +114,9 @@ export default function Signin() {
         </div>
       </div>
 
-      <button className="w-full mt-2 cursor-pointer rounded-lg bg-gradient-to-b from-gray-900 to-gray-700 py-2 text-white shadow hover:opacity-90">
-        Sign in
+      <button disabled={loading} className={`w-full mt-2 cursor-pointer rounded-lg bg-gradient-to-b from-gray-900 to-gray-700 py-2 text-white shadow
+        ${loading ? 'from-gray-700 to-gray-500 cursor-not-allowed' : 'from-gray-900 to-gray-700 hover:opacity-90 cursor-pointer'}`}>
+        { !loading ? "Sign in" : "Loading..."}
       </button>
     </form>
 

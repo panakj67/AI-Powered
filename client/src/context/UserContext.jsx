@@ -11,10 +11,11 @@ function UserContext({ children }) {
   const serverUrl = "http://localhost:8000"
   const [userData, setUserData] = useState(null)
   const [allChats, setAllChats] = useState([]);
-  const [frontendImage, setFrontendImage] = useState(null)
-  const [backendImage, setBackendImage] = useState(null)
-  const [selectedImage, setSelectedImage] = useState(null)
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+      const saved = localStorage.getItem("darkMode");
+      return saved === "true" ? true : false; // convert string to boolean
+    });
   
 
   const handleCurrentUser = async () => {
@@ -23,7 +24,7 @@ function UserContext({ children }) {
       const result = await axios.get(`/api/user/current`, { withCredentials: true })
       setUserData(result.data)
       setAllChats(result.data.chats || []);
-      console.log(result.data)
+      // console.log(result.data.chats)
     } catch (error) {
       console.log(error)
     }finally{
@@ -49,9 +50,8 @@ function UserContext({ children }) {
   }, [])
 
   const value = {
-    serverUrl, allChats, setAllChats, loading, setLoading,
-     userData, setUserData, backendImage, setBackendImage,
-      frontendImage, setFrontendImage, selectedImage, setSelectedImage, getGeminiResponse
+    serverUrl, allChats, setAllChats, loading, setLoading, darkMode, setDarkMode,
+     userData, setUserData, getGeminiResponse
   }
 
   return (
