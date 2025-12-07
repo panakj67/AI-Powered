@@ -14,8 +14,8 @@ import { Toaster} from 'react-hot-toast'
 import { useEffect } from 'react'
 import ProtectedRoute from './components/ProtectedRoute'
 
-axios.defaults.baseURL = "https://ai-powered-kxo1.onrender.com";
-// axios.defaults.baseURL = "http://localhost:3000";
+// axios.defaults.baseURL = "https://ai-powered-kxo1.onrender.com";
+axios.defaults.baseURL = "http://localhost:3000";
 axios.defaults.withCredentials = true;
 
 function App() {

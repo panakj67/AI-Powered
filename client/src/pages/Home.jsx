@@ -39,10 +39,18 @@ export default function ScriptDashboard() {
   
 
   const [selectedChat, setSelectedChat] = useState(() => {
-    setLoading(true);
-    const saved = localStorage.getItem("selectedChat");
-    return saved ? JSON.parse(saved) : null;
-  });
+  setLoading(true);
+  const saved = localStorage.getItem("selectedChat");
+
+  if (!saved || saved === "undefined") return null;
+
+  try {
+    return JSON.parse(saved);
+  } catch (e) {
+    console.error("Failed to parse selectedChat from localStorage:", e);
+    return null;
+  }
+});
 
   const chatWindowRef = useRef(null);
 
@@ -69,12 +77,16 @@ const addMessage = async (sender, text, chat = selectedChat) => {
     const { type, userInput } = data;
 
     if (type === "gmail-send") {
-      const { email, subject, body } = data;
-      window.open(
-        `https://mail.google.com/mail/?view=cm&fs=1&to=${email}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`,
-        "_blank"
-      );
-    } else if (type === "google-search") {
+  const { email, subject, body } = data;
+
+  // Replace line breaks with \r\n for Gmail to recognize paragraphs
+  const formattedBody = body.replace(/\n/g, "\r\n");
+
+  window.open(
+    `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(formattedBody)}`,
+    "_blank"
+  );
+} else if (type === "google-search") {
       window.open(`https://www.google.com/search?q=${encodeURIComponent(userInput)}`, "_blank");
     } else if (type === "calculator-open") {
       window.open("https://www.google.com/search?q=calculator", "_blank");
@@ -201,11 +213,14 @@ const addMessage = async (sender, text, chat = selectedChat) => {
     }
   }
 
+  const [showCreate, setShowCreate] = useState(false)
+
   const clearChat = () => {
     setMessages([]);
     setSelectedChat(null);
     setMobileSidebarOpen(false);
     toast.success("New chat created successfully!")
+    setShowCreate(true);
   };
 
   const fetchMessages = async () => {
@@ -328,7 +343,7 @@ const addMessage = async (sender, text, chat = selectedChat) => {
 
 
           <nav className="space-y-2">
-            <p onClick={clearChat} className="font-medium text-sm bg-indigo-500 p-2 rounded-2xl text-gray-300 cursor-pointer">New Chat</p>
+            <p onClick={clearChat} className="font-medium text-sm bg-indigo-500 p-2 rounded-2xl text-gray-300 cursor-pointer">+ New Interview</p>
             <h1 className="font-bold text-xl">History</h1>
 
             
