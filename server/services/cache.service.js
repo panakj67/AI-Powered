@@ -1,3 +1,4 @@
+import { randomUUID } from "crypto";
 import { getRedisClient } from "../config/redis.js";
 import { cacheKeys } from "../utils/cacheKeys.js";
 
@@ -24,9 +25,18 @@ const safeStringify = (value) => {
   }
 };
 
-export const getCache = async (key) => {
-  const client = getRedisClient();
+const withRedisSafe = async (callback, fallback = null) => {
   try {
+    const client = getRedisClient();
+    return await callback(client);
+  } catch (error) {
+    console.error("[cache] redis unavailable", error?.message || error);
+    return fallback;
+  }
+};
+
+export const getCache = async (key) => {
+  return withRedisSafe(async (client) => {
     const raw = await client.get(key);
     if (!raw) {
       console.log(`[cache] MISS ${key}`);
@@ -34,14 +44,10 @@ export const getCache = async (key) => {
     }
     console.log(`[cache] HIT ${key}`);
     return safeParse(raw);
-  } catch (error) {
-    console.error(`[cache] ERROR get ${key}`, error?.message || error);
-    return null;
-  }
+  });
 };
 
 export const setCache = async (key, value, options = {}) => {
-  const client = getRedisClient();
   const ttlSeconds = Number(options.ttlSeconds || DEFAULT_TTL_SECONDS);
   const staleSeconds = Number(options.staleSeconds || DEFAULT_STALE_SECONDS);
   const tags = options.tags || [];
@@ -49,7 +55,7 @@ export const setCache = async (key, value, options = {}) => {
   const payload = safeStringify(value);
   if (!payload) return;
 
-  try {
+  await withRedisSafe(async (client) => {
     const pipeline = client.pipeline();
     pipeline.set(key, payload, "EX", ttlSeconds);
     pipeline.set(cacheKeys.stale(key), payload, "EX", ttlSeconds + staleSeconds);
@@ -60,37 +66,20 @@ export const setCache = async (key, value, options = {}) => {
     }
 
     await pipeline.exec();
-  } catch (error) {
-    console.error(`[cache] ERROR set ${key}`, error?.message || error);
-  }
+  });
 };
 
 export const getStaleCache = async (key) => {
-  const client = getRedisClient();
-  try {
+  return withRedisSafe(async (client) => {
     const raw = await client.get(cacheKeys.stale(key));
     return safeParse(raw);
-  } catch (error) {
-    console.error(`[cache] ERROR get stale ${key}`, error?.message || error);
-    return null;
-  }
-};
-
-export const deleteCacheKeys = async (keys = []) => {
-  if (!keys.length) return;
-  const client = getRedisClient();
-  try {
-    await client.unlink(...keys);
-  } catch (error) {
-    console.error("[cache] ERROR delete keys", error?.message || error);
-  }
+  });
 };
 
 export const invalidateByTags = async (tags = []) => {
   if (!tags.length) return;
-  const client = getRedisClient();
 
-  try {
+  await withRedisSafe(async (client) => {
     const pipeline = client.pipeline();
     for (const tag of tags) {
       pipeline.smembers(cacheKeys.tag(tag));
@@ -114,16 +103,13 @@ export const invalidateByTags = async (tags = []) => {
     const clearTags = client.pipeline();
     for (const tag of tags) clearTags.del(cacheKeys.tag(tag));
     await clearTags.exec();
-  } catch (error) {
-    console.error("[cache] ERROR invalidate by tags", error?.message || error);
-  }
+  });
 };
 
 export const invalidateByPattern = async (pattern) => {
-  const client = getRedisClient();
-  let cursor = "0";
+  await withRedisSafe(async (client) => {
+    let cursor = "0";
 
-  try {
     do {
       const [nextCursor, keys] = await client.scan(cursor, "MATCH", pattern, "COUNT", 200);
       cursor = nextCursor;
@@ -131,29 +117,34 @@ export const invalidateByPattern = async (pattern) => {
         await client.unlink(...keys);
       }
     } while (cursor !== "0");
-  } catch (error) {
-    console.error("[cache] ERROR invalidate by pattern", error?.message || error);
-  }
+  });
 };
 
 export const acquireLock = async (key, ttlMs = DEFAULT_LOCK_TTL_MS) => {
-  const client = getRedisClient();
-  const lockKey = cacheKeys.lock(key);
+  return withRedisSafe(async (client) => {
+    const lockKey = cacheKeys.lock(key);
+    const token = randomUUID();
 
-  try {
-    const result = await client.set(lockKey, "1", "PX", ttlMs, "NX");
-    return result === "OK";
-  } catch (error) {
-    console.error(`[cache] ERROR lock acquire ${key}`, error?.message || error);
-    return false;
-  }
+    const result = await client.set(lockKey, token, "PX", ttlMs, "NX");
+    if (result !== "OK") return null;
+
+    return token;
+  });
 };
 
-export const releaseLock = async (key) => {
-  const client = getRedisClient();
-  try {
-    await client.del(cacheKeys.lock(key));
-  } catch (error) {
-    console.error(`[cache] ERROR lock release ${key}`, error?.message || error);
-  }
+export const releaseLock = async (key, token) => {
+  if (!token) return;
+
+  await withRedisSafe(async (client) => {
+    const releaseScript = `
+      if redis.call("GET", KEYS[1]) == ARGV[1]
+      then
+        return redis.call("DEL", KEYS[1])
+      else
+        return 0
+      end
+    `;
+
+    await client.eval(releaseScript, 1, cacheKeys.lock(key), token);
+  });
 };

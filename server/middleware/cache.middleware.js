@@ -28,9 +28,20 @@ export const cacheMiddleware = (options = {}) => {
       return res.status(200).json(hit);
     }
 
-    const lockAcquired = await acquireLock(key);
+    const lockToken = await acquireLock(key);
+    let lockReleased = false;
 
-    if (!lockAcquired) {
+    const finalizeLock = async () => {
+      if (!lockReleased && lockToken) {
+        lockReleased = true;
+        await releaseLock(key, lockToken);
+      }
+    };
+
+    res.on("finish", finalizeLock);
+    res.on("close", finalizeLock);
+
+    if (!lockToken) {
       const waitLoops = Math.ceil(lockWaitMs / lockRetryEveryMs);
 
       for (let i = 0; i < waitLoops; i += 1) {
@@ -52,7 +63,14 @@ export const cacheMiddleware = (options = {}) => {
 
     res.json = async (body) => {
       try {
-        const shouldCache = res.statusCode >= 200 && res.statusCode < 300 && body && !body?.token;
+        const shouldCache =
+          res.statusCode >= 200 &&
+          res.statusCode < 300 &&
+          body &&
+          !body?.token &&
+          !body?.password &&
+          (typeof options.shouldCache !== "function" || options.shouldCache(req, body));
+
         if (shouldCache) {
           await setCache(key, body, {
             ttlSeconds,
@@ -62,10 +80,6 @@ export const cacheMiddleware = (options = {}) => {
         }
       } catch (error) {
         console.error("[cache] ERROR while storing response", error?.message || error);
-      } finally {
-        if (lockAcquired) {
-          await releaseLock(key);
-        }
       }
 
       return originalJson(body);

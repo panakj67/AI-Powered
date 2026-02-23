@@ -1,10 +1,6 @@
 import chatModel from "../models/chat.model.js";
 import User from "../models/user.model.js";
 import { invalidateByTags } from "../services/cache.service.js";
-import { cacheKeys } from "../utils/cacheKeys.js";
-import execWithCache from "../utils/mongooseCache.js";
-
-const chatMessagesTTL = Number(process.env.CACHE_TTL_CHAT_MESSAGES || 60);
 
 const assertChatOwnership = async (userId, chatId) => {
   const user = await User.findById(userId).select("chats");
@@ -121,12 +117,7 @@ export const getMessages = async (req, res) => {
       return res.status(403).json({ success: false, message: "Forbidden" });
     }
 
-    const chat = await execWithCache({
-      key: cacheKeys.chatMessages(chatId),
-      ttlSeconds: chatMessagesTTL,
-      tags: [`chat:${chatId}:messages`, `chat:${chatId}`],
-      query: chatModel.findById(chatId).select("messages"),
-    });
+    const chat = await chatModel.findById(chatId).select("messages");
 
     if (!chat) {
       return res.status(404).json({ success: false, message: "Chat not found" });

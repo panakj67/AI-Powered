@@ -15,12 +15,16 @@ export const getRedisClient = () => {
     db: Number(process.env.REDIS_DB || 0),
     keyPrefix: process.env.REDIS_KEY_PREFIX || "aura:",
     maxRetriesPerRequest: Number(process.env.REDIS_MAX_RETRIES || 2),
+    connectTimeout: Number(process.env.REDIS_CONNECT_TIMEOUT_MS || 10000),
     enableAutoPipelining: true,
     lazyConnect: true,
+    enableOfflineQueue: true,
+    retryStrategy: (times) => Math.min(times * 100, 2000),
     tls: useTls ? {} : undefined,
   });
 
   redisClient.on("connect", () => console.log("[redis] connected"));
+  redisClient.on("ready", () => console.log("[redis] ready"));
   redisClient.on("error", (error) => console.error("[redis] error", error?.message || error));
   redisClient.on("reconnecting", () => console.warn("[redis] reconnecting"));
 
@@ -29,7 +33,7 @@ export const getRedisClient = () => {
 
 export const connectRedis = async () => {
   const client = getRedisClient();
-  if (client.status !== "ready") {
+  if (client.status !== "ready" && client.status !== "connecting") {
     await client.connect();
   }
   return client;

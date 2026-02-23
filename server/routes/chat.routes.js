@@ -28,7 +28,7 @@ router.get(
   "/:chatId",
   isAuth,
   cacheMiddleware({
-    keyBuilder: (req) => cacheKeys.chatById(req.params.chatId),
+    keyBuilder: (req) => cacheKeys.chatById(req.userId, req.params.chatId),
     ttlSeconds: Number(process.env.CACHE_TTL_CHAT_BY_ID || 90),
     tags: (req) => [`chat:${req.params.chatId}`, `user:${req.userId}:chats`],
   }),
@@ -42,7 +42,16 @@ router.post("/", isAuth, createNewChat);
 router.post("/:chatId/messages", isAuth, addMessages);
 
 // Get all messages for a chat
-router.get("/:chatId/messages", isAuth, getMessages);
+router.get(
+  "/:chatId/messages",
+  isAuth,
+  cacheMiddleware({
+    keyBuilder: (req) => cacheKeys.chatMessages(req.userId, req.params.chatId),
+    ttlSeconds: Number(process.env.CACHE_TTL_CHAT_MESSAGES || 60),
+    tags: (req) => [`chat:${req.params.chatId}:messages`, `chat:${req.params.chatId}`],
+  }),
+  getMessages
+);
 
 // Delete a chat
 router.delete("/:chatId", isAuth, deleteChat);

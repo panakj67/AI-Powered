@@ -10,6 +10,7 @@ import chatRouter from "./routes/chat.routes.js"
 import healthRouter from "./routes/health.routes.js";
 import { connectRedis } from "./config/redis.js";
 import { createApiRateLimiter } from "./middleware/rateLimiter.js";
+import { createSessionMiddleware } from "./middleware/session.middleware.js";
 
 const app=express()
 
@@ -26,6 +27,7 @@ app.use(cors({
 const port=process.env.PORT || 3000
 app.use(express.json())
 app.use(cookieParser())
+app.use(createSessionMiddleware())
 app.use(createApiRateLimiter())
 
 app.get("/", (req, res) => {
