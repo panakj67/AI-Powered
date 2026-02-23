@@ -1,9 +1,9 @@
 import jwt from "jsonwebtoken"
+
 const isAuth = async (req,res,next)=>{
     try {
         const token = req.cookies.token
-        console.log(process.env.JWT_SECRET);
-        
+
         if(!token || !process.env.JWT_SECRET){
             return res.status(400).json({success : false, message:"You are not authorised!"})
         }
@@ -14,7 +14,7 @@ const isAuth = async (req,res,next)=>{
 
     } catch (error) {
         console.log(error)
-        return res.json({success : false, message:"is Auth error"})
+        return res.status(401).json({success : false, message:"is Auth error"})
     }
 }
 

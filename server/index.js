@@ -7,14 +7,16 @@ import cors from "cors"
 import cookieParser from "cookie-parser"
 import userRouter from "./routes/user.routes.js"
 import chatRouter from "./routes/chat.routes.js"
-import geminiResponse from "./gemini.js"
-
+import healthRouter from "./routes/health.routes.js";
+import { connectRedis } from "./config/redis.js";
+import { createApiRateLimiter } from "./middleware/rateLimiter.js";
 
 const app=express()
 
 connectDb()
-
-// console.log(process.env.FRONTEND_URL);
+connectRedis().catch((error) => {
+    console.error("[redis] connection bootstrap failed", error?.message || error)
+})
 
 app.use(cors({
     origin: process.env.FRONTEND_URL,
@@ -24,6 +26,7 @@ app.use(cors({
 const port=process.env.PORT || 3000
 app.use(express.json())
 app.use(cookieParser())
+app.use(createApiRateLimiter())
 
 app.get("/", (req, res) => {
     res.send("Api is working!!")
@@ -31,10 +34,9 @@ app.get("/", (req, res) => {
 
 app.use("/api/auth",authRouter)
 app.use("/api/user",userRouter)
-app.use("/api/chat", chatRouter);
-
+app.use("/api/chat", chatRouter)
+app.use("/health", healthRouter)
 
 app.listen(port,()=>{
-    console.log("Server is running on PORT 3000 !!")
+    console.log(`Server is running on PORT ${port} !!`)
 })
-
