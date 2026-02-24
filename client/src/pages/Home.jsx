@@ -7,6 +7,7 @@ import axios from "axios";
 import { userDataContext } from "../context/UserContext";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import ProductivityPanel from "../components/ProductivityPanel";
 
 const FreshChat = lazy(
   () => import("../components/FreshChat")
@@ -395,7 +396,7 @@ const addMessage = async (sender, text, chat = selectedChat) => {
             <button onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)} className="sm:hidden cursor-pointer flex h-10 w-10 rounded-full overflow-hidden">
               <img src={Aura} alt="Aura Logo" className="h-full w-full object-cover" />
             </button>
-            <h2 className="text-lg font-semibold ml-2">AI Chat</h2>
+            <h2 className="text-lg font-semibold ml-2">AI Chat + Productivity Agent</h2>
           </div>
           <Button variant="default" className="cursor-pointer" onClick={handleLogOut}>
             ⚡ Logout
@@ -403,6 +404,8 @@ const addMessage = async (sender, text, chat = selectedChat) => {
         </header>
 
         {/* Chat Messages */}
+        <ProductivityPanel />
+
         {messages.length === 0 ? (
           !loading && <FreshChat />
         ) : (
