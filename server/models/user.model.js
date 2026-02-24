@@ -14,6 +14,14 @@ const userSchema=new mongoose.Schema({
         type:String,
         required:true
     },
+    assistantName:{
+        type:String,
+        default:"Aura"
+    },
+    assistantImage:{
+        type:String,
+        default:""
+    },
     chats : [
         {
             type : mongoose.Schema.Types.ObjectId,
