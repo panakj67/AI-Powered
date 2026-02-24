@@ -7,6 +7,7 @@ import axios from "axios";
 import { userDataContext } from "../context/UserContext";
 import { useNavigate } from "react-router-dom";
 import toast from "react-hot-toast";
+import ProductivityPanel from "../components/ProductivityPanel";
 
 const FreshChat = lazy(
   () => import("../components/FreshChat")
@@ -106,6 +107,33 @@ const addMessage = async (sender, text, chat = selectedChat) => {
     return words.length > 5 ? words.slice(0, 5).join(" ") + "..." : firstMessage;
   };
 
+
+  const executeAction = async (action) => {
+    if (!action?.entity || !action?.payload) return;
+
+    try {
+      if (action.entity === "reminder") {
+        await axios.post("/api/reminders", action.payload);
+        toast.success("Reminder created");
+      } else if (action.entity === "task") {
+        await axios.post("/api/tasks", action.payload);
+        toast.success("Task created");
+      } else if (action.entity === "email") {
+        await axios.post("/api/emails/draft", action.payload);
+        toast.success("Email draft created");
+      } else if (action.entity === "calendar") {
+        await axios.post("/api/calendar", action.payload, {
+          headers: { "x-action-confirmed": "true" },
+        });
+        toast.success("Event created");
+      } else if (action.entity === "agent-run") {
+        await axios.post("/api/agent-runs", action.payload);
+        toast.success("Agent run created");
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message || "Failed to execute action");
+    }
+  };
   const handleSend = async () => {
     const trimmed = inputText.trim();
     if (!trimmed) return;
@@ -131,6 +159,7 @@ const addMessage = async (sender, text, chat = selectedChat) => {
       await addMessage("ai", response.response, chatToUse);
       speak(response.response);
       handleCommand(response);
+      await executeAction(response.action);
   
     } catch (error) {
       await addMessage("ai", "Oops! Something went wrong.");
@@ -388,14 +417,14 @@ const addMessage = async (sender, text, chat = selectedChat) => {
       </aside>
 
       {/* Main Content */}
-      <main onClick={() => setMobileSidebarOpen(false)} className="flex-1 flex flex-col relative">
+      <main onClick={() => setMobileSidebarOpen(false)} className="flex-1 flex flex-col min-h-0">
         {/* Header */}
         <header className="flex shadow-sm justify-between items-center p-4 border-gray-300 dark:border-gray-700">
           <div onClick={(e) => e.stopPropagation()} className="flex items-center">
             <button onClick={() => setMobileSidebarOpen(!mobileSidebarOpen)} className="sm:hidden cursor-pointer flex h-10 w-10 rounded-full overflow-hidden">
               <img src={Aura} alt="Aura Logo" className="h-full w-full object-cover" />
             </button>
-            <h2 className="text-lg font-semibold ml-2">AI Chat</h2>
+            <h2 className="text-lg font-semibold ml-2">AI Chat + Productivity Agent</h2>
           </div>
           <Button variant="default" className="cursor-pointer" onClick={handleLogOut}>
             ⚡ Logout
@@ -403,10 +432,12 @@ const addMessage = async (sender, text, chat = selectedChat) => {
         </header>
 
         {/* Chat Messages */}
+        <ProductivityPanel />
+
         {messages.length === 0 ? (
           !loading && <FreshChat />
         ) : (
-          <div ref={chatWindowRef} className={`flex-1 w-[94%] max-w-2xl ${darkMode && "dark"} absolute top-18 h-[73.5%] left-1/2 transform -translate-x-1/2 py-4 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent`}>
+          <div ref={chatWindowRef} className={`flex-1 w-[94%] max-w-2xl ${darkMode && "dark"} mx-auto py-4 overflow-y-auto space-y-4 scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-transparent`}>
             {messages.map(({ sender, text }, i) => (
               <div key={i} className={`flex max-w-[70%] ${sender === "user" ? "ml-auto justify-end" : "mr-auto justify-start"}`}>
                 <div className={`px-4 py-1 rounded-2xl max-w-full break-words whitespace-pre-wrap shadow-md ${sender === "user" ? `${darkMode ? "bg-gradient-to-r from-indigo-600 to-purple-600" : "bg-gradient-to-r from-indigo-500 to-purple-500"} text-white rounded-br-none` : `${darkMode ? "bg-gradient-to-r from-cyan-500 to-blue-600 text-white" : "bg-gradient-to-r from-cyan-400 to-blue-500 text-white"} rounded-bl-none`}`} style={{ wordBreak: "break-word" }}>
@@ -419,7 +450,7 @@ const addMessage = async (sender, text, chat = selectedChat) => {
         )}
 
         {/* Chat Input */}
-      <div className="w-[94%] max-w-2xl z-50 absolute bottom-5 left-1/2 transform -translate-x-1/2 flex items-center border rounded-full p-2 bg-transparent shadow-md">
+      <div className="w-[94%] max-w-2xl mx-auto my-4 flex items-center border rounded-full p-2 bg-transparent shadow-md">
         <input
           type="text"
           value={inputText}
